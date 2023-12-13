@@ -1,3 +1,4 @@
+SHELL   =  /bin/bash
 TSDIR   ?= $(CURDIR)/tree-sitter-tablegen
 TESTDIR ?= $(TSDIR)/test
 

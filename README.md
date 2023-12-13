@@ -24,7 +24,7 @@ Tree-sitter starter guide: https://git.savannah.gnu.org/cgit/emacs.git/tree/admi
 ```elisp
 (add-to-list
  'treesit-language-source-alist
- '(tablegen "https://github.com/Flakebi/tree-sitter-tablegen"))
+ '(tablegen "https://github.com/amaanq/tree-sitter-tablegen"))
 (treesit-install-language-grammar 'tablegen)
 ```
 

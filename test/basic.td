@@ -1,6 +1,8 @@
 // -*- tablegen-ts -*-
 include "abc"
-// Class
+/*
+ * Class
+ */
 class Foo {
   int Bar = 5;
   int Baz = Bar;
@@ -46,6 +48,10 @@ def ADD32rr {   // Instruction X86Inst I
   FPFormat FPForm = ?;
 }
 defvar i = !add(i, 1);
+defvar s = [{
+ kadkfsadf
+}];
+defset list<Register> X = {};
 
 // Let
 let isTerminator = true, isReturn = true, isBarrier = true, hasCtrlDep = true in

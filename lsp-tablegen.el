@@ -37,7 +37,7 @@
   "Command to run the TableGen language server."
   :group 'lsp-tablegen
   :risky t
-  :type 'list)
+  :type '(repeat string))
 
 (cl-pushnew 'lsp-tablegen lsp-client-packages)
 (add-to-list 'lsp-language-id-configuration '("\\.td\\'" . "tablegen"))

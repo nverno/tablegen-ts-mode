@@ -47,22 +47,22 @@
 
 (defvar tablegen-ts-mode-syntax-table
   (let ((table (make-syntax-table)))
-    (modify-syntax-entry ?+   "."      table) 
-    (modify-syntax-entry ?-   "."      table) 
-    (modify-syntax-entry ?=   "."      table) 
-    (modify-syntax-entry ?_   "_"      table) 
-    (modify-syntax-entry ?%   "_"      table) 
-    (modify-syntax-entry ?!   "_"      table) 
-    (modify-syntax-entry ?$   "' _"    table) 
-    (modify-syntax-entry ?<   "("      table) 
-    (modify-syntax-entry ?>   ")"      table) 
-    (modify-syntax-entry ?|   "."      table) 
+    (modify-syntax-entry ?+   "."      table)
+    (modify-syntax-entry ?-   "."      table)
+    (modify-syntax-entry ?=   "."      table)
+    (modify-syntax-entry ?_   "_"      table)
+    (modify-syntax-entry ?%   "_"      table)
+    (modify-syntax-entry ?!   "_"      table)
+    (modify-syntax-entry ?$   "' _"    table)
+    (modify-syntax-entry ?<   "("      table)
+    (modify-syntax-entry ?>   ")"      table)
+    (modify-syntax-entry ?|   "."      table)
     (modify-syntax-entry ?\'  "\""     table)
-    (modify-syntax-entry ?\240 "."     table)   
-    (modify-syntax-entry ?/   ". 124b" table) 
-    (modify-syntax-entry ?*   ". 23"   table) 
-    (modify-syntax-entry ?\n  "> b"    table) 
-    (modify-syntax-entry ?\^m "> b"    table) 
+    (modify-syntax-entry ?\240 "."     table)
+    (modify-syntax-entry ?/   ". 124b" table)
+    (modify-syntax-entry ?*   ". 23"   table)
+    (modify-syntax-entry ?\n  "> b"    table)
+    (modify-syntax-entry ?\^m "> b"    table)
     table)
   "Syntax table for `tablegen-ts-mode'.")
 
@@ -75,9 +75,10 @@
      ((node-is "}") parent-bol 0)
      ((node-is "]") parent-bol 0)
      ((node-is "preprocessor") parent-bol 0)
-     ((and (parent-is "comment") c-ts-common-looking-at-star)
+     ((and (parent-is "multiline_comment") c-ts-common-looking-at-star)
       c-ts-common-comment-start-after-first-star -1)
-     ((parent-is "comment") prev-adaptive-prefix 0)
+     ;; ((parent-is "multiline_comment") prev-adaptive-prefix 0)
+     ((parent-is "code_string") no-indent)
      (no-node parent-bol 0)
      (catch-all parent-bol tablegen-ts-mode-indent-level)))
   "Tree-sitter indentation rules for `tablegen-ts-mode'.")
@@ -87,20 +88,26 @@
 (defvar tablegen-ts-mode--feature-list
   '(( comment definition)
     ( keyword string)
-    ( type constant number assignment function)
-    ( operator variable bracket delimiter))
+    ( variable type constant number assignment function)
+    ( operator bracket delimiter))
   "`treesit-font-lock-feature-list' for `tablegen-ts-mode'.")
 
 (defvar tablegen-ts-mode--keywords
   '("class" "field" "code"
     "let" "defvar" "def" "defset" "defm"
     "foreach" "in" "if" "then" "else"
-    "multiclass" "include" "assert")
+    "multiclass" "assert")
   "TableGen keywords for tree-sitter font-locking.")
 
 (defvar tablegen-ts-mode--font-lock-settings
   (treesit-font-lock-rules
    :default-language 'tablegen
+
+   :feature 'keyword
+   `(["include" (preprocessor)] @font-lock-preprocessor-face
+     [,@tablegen-ts-mode--keywords "!cond" (operator_keyword)] @font-lock-keyword-face
+     ((comment) @font-lock-preprocessor-face
+      (:match "\\`.*RUN\\'" @font-lock-preprocessor-face)))
 
    :feature 'comment
    '([(multiline_comment) (comment)] @font-lock-comment-face)
@@ -108,30 +115,38 @@
    :feature 'string
    '([(string_string) (code_string)] @font-lock-string-face)
 
-   :feature 'keyword
-   `([,@tablegen-ts-mode--keywords "!cond" (operator_keyword)] @font-lock-keyword-face
-     (preprocessor) @font-lock-preprocessor-face)
+   :feature 'number
+   '((number) @font-lock-number-face)
 
    :feature 'definition
    '((class name: (identifier) @tablegen-ts-mode-class-face)
      (multiclass (identifier) @tablegen-ts-mode-class-face)
      (template_arg (identifier) @font-lock-variable-name-face)
-     (def _ (value) @font-lock-function-name-face)
-     (defvar _ (identifier) @font-lock-variable-name-face)
+     (def (value (identifier) @font-lock-function-name-face))
+     (def (value (value (identifier) @font-lock-function-name-face)
+                 "#" (value (identifier) @font-lock-variable-use-face)))
+     (defm (value (identifier) @font-lock-function-name-face))
+     (defm (value (value (identifier) @font-lock-function-name-face)
+                  "#" (value (identifier) @font-lock-variable-use-face)))
+     (defset (_) (identifier) @font-lock-variable-name-face)
+     (defvar (identifier) @font-lock-variable-name-face)
      (let (let_item (identifier) @font-lock-variable-name-face))
      (let_inst (identifier) @font-lock-variable-name-face)
-     (foreach (identifier) @font-lock-variable-name-face)
-     (dag_arg (value (identifier) @font-lock-variable-name-face)))
+     (foreach (identifier) @font-lock-variable-name-face))
+
+   :feature 'type
+   '((type _ @font-lock-type-face ["<" ">"] :* @font-lock-bracket-face)
+     ((identifier) @font-lock-type-face
+      (:match "\\`_*[A-Z][A-Z0-9_]+\\'" @font-lock-type-face))
+     (dag_arg (value (identifier) @font-lock-type-face) ":" (var))
+     (parent_class_list (identifier) @font-lock-type-face
+                        (value (identifier) @font-lock-type-face) :?)
+     (parent_class_list argument: (value (identifier) @font-lock-variable-use-face)))
 
    :feature 'assignment
    '((instruction (identifier) @font-lock-variable-name-face)
      ((instruction) @_instr
       (:match "=" @_instr)))
-
-   :feature 'type
-   '((type) @font-lock-type-face
-     (parent_class_list (identifier) @font-lock-type-face)
-     (parent_class_list argument: (value (identifier) @font-lock-variable-use-face)))
 
    :feature 'constant
    '(["true" "false"] @font-lock-constant-face)
@@ -140,18 +155,16 @@
    '(["!cond" (operator_keyword)] @font-lock-function-call-face)
 
    :feature 'variable
-   '((var) @font-lock-variable-use-face
+   '((var) @font-lock-variable-name-face
+     (dag_arg (value (identifier) @font-lock-variable-name-face))
      (operator argument: (value (identifier) @font-lock-variable-use-face))
      (value (identifier) @font-lock-variable-use-face))
 
-   :feature 'number
-   '((number) @font-lock-number-face)
-
    :feature 'operator
-   `(["#" "-" "..." ":" "=" "?"] @font-lock-operator-face)
+   `(["#" "-" "..." "=" "?"] @font-lock-operator-face)
 
    :feature 'delimiter
-   '(["." "," ";"] @font-lock-delimiter-face)
+   '(["." "," ";" ":"] @font-lock-delimiter-face)
 
    :feature 'bracket
    '(["(" ")" "{" "}" "[" "]" "<" ">"] @font-lock-bracket-face))
@@ -169,6 +182,7 @@
     (and node (treesit-node-text node))))
 
 (defun tablegen-ts-mode--imenu-valid-p (node)
+  "Return non-nil if NODE should be included in imenu."
   (tablegen-ts-mode--defun-name node))
 
 (defvar tablegen-ts-mode--sentence-nodes
