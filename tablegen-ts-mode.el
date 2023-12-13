@@ -161,17 +161,23 @@
 
 (defun tablegen-ts-mode--defun-name (node)
   "Find name of NODE."
-  (treesit-node-text
-   (or (treesit-node-child-by-field-name node "name")
-       node)))
+  (let ((node (pcase (treesit-node-type node)
+                ("class" (treesit-node-child-by-field-name node "name"))
+                ((or "def" "defm" "multiclass")
+                 (treesit-node-child node 1))
+                (_ nil))))
+    (and node (treesit-node-text node))))
 
-(defvar tablegen-ts-mode--sentence-nodes nil
-  ;; (rx (or (seq (or "class" "class_variable"
-  ;;                  "subroutine"
-  ;;                  "local_variable")
-  ;;              "_declaration")
-  ;;         (seq (or "if" "while" "let" "do" "return") "_statement")
-  ;;         "else_clause"))
+(defun tablegen-ts-mode--imenu-valid-p (node)
+  (tablegen-ts-mode--defun-name node))
+
+(defvar tablegen-ts-mode--sentence-nodes
+  (rx bos (or "statement"
+              "class"
+              "multiclass"
+              "body_item"
+              "def" "defm" "defvar" "defset")
+      eos)
   "See `treesit-sentence-type-regexp' for more information.")
 
 (defvar tablegen-ts-mode--sexp-nodes nil
@@ -203,7 +209,8 @@
     ;; Navigation
     (setq-local treesit-defun-tactic 'nested)
     (setq-local treesit-defun-name-function #'tablegen-ts-mode--defun-name)
-    (setq-local treesit-defun-type-regexp (rx (or "class")))
+    (setq-local treesit-defun-type-regexp
+                (rx bos (or "class" "multiclass" "def" "defm") eos))
 
     (setq-local treesit-thing-settings
                 `((tablegen
@@ -213,7 +220,10 @@
 
     ;; Imenu
     (setq-local treesit-simple-imenu-settings
-                '(("Class" "\\`class\\'")))
+                '(("Class" "\\`\\(?:\\(?:multi\\)?class\\)\\'"
+                   tablegen-ts-mode--imenu-valid-p)
+                  ("Def" "\\`\\(?:defm?\\)\\'"
+                   tablegen-ts-mode--imenu-valid-p)))
 
     (treesit-major-mode-setup)))
 
