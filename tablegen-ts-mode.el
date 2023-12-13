@@ -120,6 +120,7 @@
      (defvar _ (identifier) @font-lock-variable-name-face)
      (let (let_item (identifier) @font-lock-variable-name-face))
      (let_inst (identifier) @font-lock-variable-name-face)
+     (foreach (identifier) @font-lock-variable-name-face)
      (dag_arg (value (identifier) @font-lock-variable-name-face)))
 
    :feature 'assignment
